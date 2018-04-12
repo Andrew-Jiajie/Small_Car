@@ -1,0 +1,234 @@
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        04/12/2018 15:17:44 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE LITTLE_CAR
+OBJECT MODULE PLACED IN .\Output\Little_Car.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE Code\Little_Car.C OPTIMIZE(4,SPEED) BROWSE INCDIR(..\Include) DEFINE(FOS
+                    -C_160000) DEBUG OBJECTEXTEND PRINT(.\LST\Little_Car.lst) TABS(2) OBJECT(.\Output\Little_Car.obj)
+
+line level    source
+
+   1          /*--------------------------------------------------------------------------------------------------------
+             --*/
+   2          /*                                                                                                        
+             - */
+   3          /* Copyright(c) 2017 Nuvoton Technology Corp. All rights reserved.                                        
+             - */
+   4          /*                                                                                                        
+             - */
+   5          /*--------------------------------------------------------------------------------------------------------
+             --*/
+   6          
+   7          //********************************************************************************************************
+             -***
+   8          //  Website: http://www.nuvoton.com
+   9          //  E-Mail : MicroC-8bit@nuvoton.com
+  10          //  Date   : Jan/21/2017
+  11          //********************************************************************************************************
+             -***
+  12          
+  13          //********************************************************************************************************
+             -***
+  14          //  File Function: N76E003 GPIO demo code
+  15          //********************************************************************************************************
+             -***
+  16          #include "N76E003.h"
+  17          #include "SFR_Macro.h"
+  18          #include "Function_define.h"
+  19          #include "Common.h"
+  20          #include "Delay.h"
+  21          
+  22          
+  23          #define HIGH 1
+  24          #define LOW 0
+  25          
+  26          #define WAITING 2
+  27          #define PLAYING 1
+  28          #define STOP 0
+  29          #define ON 1
+  30          #define OFF 0
+  31          #define MINIT   60
+  32          #define SECOND 1
+  33          #define SW_PRESS 1
+  34          #define SW_RELEASE 2
+  35          #define SW_NONE 0
+  36          
+  37          
+  38          /*------------------------------------------------
+  39          The main C function.  Program execution starts
+  40          here after stack initialization.
+  41          ------------------------------------------------*/
+  42          
+  43          #define setbit(x,y) x|=(1<<y) //将X的第Y位置1
+  44          #define testbit(x,y) x&(1<<y) //测试X的第Y位置
+  45          #define clrbit(x,y) x&=!(1<<y) //将X的第Y位清0
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        04/12/2018 15:17:44 PAGE 2   
+
+  46          
+  47          
+  48          int Send_num(int num){
+  49   1        char CharToSend[10];
+  50   1        uchar i=0,j=9;
+  51   1        uchar negative=0;
+  52   1        if(num<0){
+  53   2          negative=1;
+  54   2          num=-num;
+  55   2        }
+  56   1        if(num==0)
+  57   1          CharToSend[j--]='0';
+  58   1        while(num>0){
+  59   2          uchar aa=num%10;
+  60   2          CharToSend[j--]='0'+aa;
+  61   2          num=num/10;
+  62   2        }
+  63   1        if(negative==1){
+  64   2          CharToSend[j--]='-';
+  65   2        }
+  66   1        for(i=j+1; i<10; i++){
+  67   2          Send_Data_To_UART1(CharToSend[i]);
+  68   2        }
+  69   1      }
+  70          /*********************************************************************************************************
+             -***
+  71          *     Servo Control part
+  72          **********************************************************************************************************
+             -**/
+  73          #define RATE 2
+  74          #define SERVO_LEFT    (4*RATE)
+  75          #define SERVO_RIGHT   (23*RATE)
+  76          #define SERVO_MIDDLE  (15*RATE)
+  77          #define SEVOR_PIN     P10
+  78          #define TIMER_DIV12_VALUE_50us      65536-65    //65*12/16000000 = 50 uS,     // Timer divider = 12 
+  79          
+  80          int timer_count=0;
+  81          int servo_angle=15*RATE;
+  82          
+  83          void Servo_Timer0_ISR (void) interrupt 1          //interrupt address is 0x000B
+  84          {
+  85   1        clr_TF0;
+  86   1        clr_TR0;                                    //Stop Timer0
+  87   1          TL0 = LOBYTE(TIMER_DIV12_VALUE_50us);     //Find  define in "Function_define.h" "TIMER VALUE"
+  88   1          TH0 = HIBYTE(TIMER_DIV12_VALUE_50us);
+  89   1        set_TR0;                                    //Start Timer0
+  90   1        if(timer_count<=servo_angle){
+  91   2          SEVOR_PIN=1;
+  92   2        }else{
+  93   2          SEVOR_PIN=0;
+  94   2        }
+  95   1        timer_count++;
+  96   1        if(timer_count>=200*RATE){
+  97   2          timer_count=0;
+  98   2        }
+  99   1      }
+ 100          void Init_servo(){
+ 101   1        P10_PushPull_Mode;              //Servo control pin
+ 102   1        
+ 103   1        TIMER0_MODE0_ENABLE;                        //Timer 0 and Timer 1 mode configuration
+ 104   1        clr_T0M;
+ 105   1          TMOD |= 0x01;                               //Timer0 is 16-bit mode
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        04/12/2018 15:17:44 PAGE 3   
+
+ 106   1          TL0 = LOBYTE(TIMER_DIV12_VALUE_10ms);     //Find  define in "Function_define.h" "TIMER VALUE"
+ 107   1          TH0 = HIBYTE(TIMER_DIV12_VALUE_10ms);
+ 108   1        set_ET0;                                    //enable Timer0 interrupt
+ 109   1        set_TR0;                                    //Timer0 run
+ 110   1      }
+ 111          void set_angle(int angle){
+ 112   1        if(angle<0){
+ 113   2          angle=0;
+ 114   2        }
+ 115   1        if(angle>180){
+ 116   2          angle=180;
+ 117   2        }
+ 118   1        servo_angle=SERVO_LEFT+((float)(SERVO_RIGHT-SERVO_LEFT))/180*angle;
+ 119   1      }
+ 120          /*********************************************************************************************************
+             -***
+ 121          *     Motor Control
+ 122          **********************************************************************************************************
+             -**/
+ 123          #define SPEED_MIN   0
+ 124          #define SPEED_MAX   2000
+ 125          
+ 126          void Motor_forward(int speed){
+ 127   1        PWM0H = HIBYTE(speed);    //L9110 PWM HIGH
+ 128   1        PWM0L = LOBYTE(speed);
+ 129   1        PWM1H = HIBYTE(0);      //L9110 PWM 0   
+ 130   1        PWM1L = LOBYTE(0);
+ 131   1        //PWM0_OUTPUT_INVERSE;
+ 132   1        set_LOAD;
+ 133   1      }
+ 134          void Motor_backward(int speed){
+ 135   1        PWM0H = HIBYTE(0);      //L9110 PWM 0
+ 136   1        PWM0L = LOBYTE(0);
+ 137   1        PWM1H = HIBYTE(speed);    //L9110 PWM HIGH    
+ 138   1        PWM1L = LOBYTE(speed);
+ 139   1        //PWM0_OUTPUT_INVERSE;
+ 140   1        set_LOAD;
+ 141   1      }
+ 142          void Motor_stop(){
+ 143   1        PWM0H = HIBYTE(0);      //L9110 PWM 0
+ 144   1        PWM0L = LOBYTE(0);
+ 145   1        PWM1H = HIBYTE(0);      //L9110 PWM 0   
+ 146   1        PWM1L = LOBYTE(0);
+ 147   1        //PWM0_OUTPUT_INVERSE;
+ 148   1        set_LOAD;
+ 149   1      }
+ 150          void Init_motor(){
+ 151   1        PWM0_P12_OUTPUT_ENABLE;
+ 152   1        PWM1_P11_OUTPUT_ENABLE;
+ 153   1      
+ 154   1        PWM_IMDEPENDENT_MODE;
+ 155   1        PWM_CLOCK_DIV_8;
+ 156   1        PWMPH = 0x07;
+ 157   1        PWMPL = 0xCF;
+ 158   1        
+ 159   1        set_PWMRUN;
+ 160   1      }
+ 161          //-----------------------------------------------------------------------------------
+ 162          
+ 163          void main (void) 
+ 164          {
+ 165   1        //set_PD;
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        04/12/2018 15:17:44 PAGE 4   
+
+ 166   1        Set_All_GPIO_Quasi_Mode;          // Define in Function_define.h
+ 167   1        //DEBUG_LED=0;
+ 168   1        InitialUART0_Timer1(9600);
+ 169   1        InitialUART1_Timer3(115200);
+ 170   1        set_EA;                                     //enable interrupts
+ 171   1        set_EPI;
+ 172   1      /*---------------------------------Main function-----------------------------------------------*/
+ 173   1        Init_servo();
+ 174   1        set_angle(90);
+ 175   1        Init_motor();
+ 176   1        while(1){
+ 177   2      #if 1
+ 178   2          int i=0;
+ 179   2          for(i=0;i<=2000;i=i+100){
+ 180   3            Motor_forward(i);
+ 181   3            Delay_1ms(100);
+ 182   3            //Send_num(i);
+ 183   3          }
+ 184   2          for(i=180;i>=0;i--){
+ 185   3            set_angle(i);
+ 186   3            Delay_1ms(20);
+ 187   3          }
+ 188   2      #endif
+ 189   2        }
+ 190   1      }
+*** WARNING C290 IN LINE 69 OF Code\Little_Car.C: missing return value
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    526    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      4      16
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

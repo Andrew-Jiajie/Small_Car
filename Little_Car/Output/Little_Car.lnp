@@ -1,0 +1,6 @@
+".\Output\Little_Car.obj",
+".\Output\Common.obj",
+".\Output\Delay.obj" 
+TO ".\Output\Little_Car" 
+PRINT(".\LST\Little_Car.m51") RAMSIZE(256) 
+DISABLEWARNING (16) 
