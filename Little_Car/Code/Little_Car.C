@@ -18,6 +18,9 @@
 #include "Function_define.h"
 #include "Common.h"
 #include "Delay.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 
 
 #define HIGH 1
@@ -108,7 +111,8 @@ void Init_servo(){
 	set_ET0;                                    //enable Timer0 interrupt
 	set_TR0;                                    //Timer0 run
 }
-void set_angle(int angle){
+int set_angle(int angle){
+	angle+=90;	//angle range -90~90
 	if(angle<0){
 		angle=0;
 	}
@@ -116,36 +120,47 @@ void set_angle(int angle){
 		angle=180;
 	}
 	servo_angle=SERVO_LEFT+((float)(SERVO_RIGHT-SERVO_LEFT))/180*angle;
+	return angle-90;
 }
 /************************************************************************************************************
 *   	Motor Control
 ************************************************************************************************************/
-#define SPEED_MIN		0
-#define SPEED_MAX		2000
+#define SPEED_MIN		200
+#define SPEED_MAX		1998
 
-void Motor_forward(int speed){
-	PWM0H = HIBYTE(speed);		//L9110 PWM HIGH
-	PWM0L = LOBYTE(speed);
-	PWM1H = HIBYTE(0);			//L9110 PWM 0		
-	PWM1L = LOBYTE(0);
+int Motor_move(int speed){			//speed range -10~10
+	int speed_load=0;
+	if(speed>10){
+		speed=10;
+	}
+	if(speed<-10){
+		speed=-10;
+	}
+	//speed=speed*200;
+	if(speed==0){
+		PWM0H = HIBYTE(0);		//L9110 PWM HIGH
+		PWM0L = LOBYTE(0);
+		PWM1H = HIBYTE(0);			//L9110 PWM 0		
+		PWM1L = LOBYTE(0);
+	}
+	if(speed>0){
+		speed_load=(SPEED_MAX-SPEED_MIN)/10*speed+SPEED_MIN;
+		PWM0H = HIBYTE(speed_load);		//L9110 PWM HIGH
+		PWM0L = LOBYTE(speed_load);
+		PWM1H = HIBYTE(0);			//L9110 PWM 0		
+		PWM1L = LOBYTE(0);
+	}
+	if(speed<0){
+		speed=-speed;
+		speed_load=(SPEED_MAX-SPEED_MIN)/10*speed+SPEED_MIN;
+		PWM0H = HIBYTE(0);			//L9110 PWM 0
+		PWM0L = LOBYTE(0);
+		PWM1H = HIBYTE(speed_load);		//L9110 PWM HIGH		
+		PWM1L = LOBYTE(speed_load);
+	}
 	//PWM0_OUTPUT_INVERSE;
 	set_LOAD;
-}
-void Motor_backward(int speed){
-	PWM0H = HIBYTE(0);			//L9110 PWM 0
-	PWM0L = LOBYTE(0);
-	PWM1H = HIBYTE(speed);		//L9110 PWM HIGH		
-	PWM1L = LOBYTE(speed);
-	//PWM0_OUTPUT_INVERSE;
-	set_LOAD;
-}
-void Motor_stop(){
-	PWM0H = HIBYTE(0);			//L9110 PWM 0
-	PWM0L = LOBYTE(0);
-	PWM1H = HIBYTE(0);			//L9110 PWM 0		
-	PWM1L = LOBYTE(0);
-	//PWM0_OUTPUT_INVERSE;
-	set_LOAD;
+	return speed;
 }
 void Init_motor(){
 	PWM0_P12_OUTPUT_ENABLE;
@@ -158,33 +173,131 @@ void Init_motor(){
 	
 	set_PWMRUN;
 }
+
 //-----------------------------------------------------------------------------------
+#define STR_LIMIT 	50
+char Tmp_Buf[STR_LIMIT];
+char Str_Buf[STR_LIMIT];
+int Write_Num=0;
+int Read_Num=0;
+int Str_Ready=0;
+int Data_Ready=0;
+
+#if 0
+uchar get_string()
+{
+    int result_num=0;
+	int timeout=100;
+
+	while(!RI && timeout--){
+		Delay_100us(1);		//delay 25ms
+	}
+    while (RI) {
+      Str_Buf[result_num++]=SBUF;
+	  RI = 0;
+	  if(result_num>=STR_LIMIT){
+	  	break;
+	  }
+	  timeout=5000;
+	  while(!RI && timeout--);
+    }
+	Str_Buf[result_num]=0;
+    return result_num;
+}
+#else
+int get_string(){
+	int str_count=0;
+	while(Tmp_Buf[Read_Num]){
+		Str_Buf[str_count]=Tmp_Buf[Read_Num];
+		Tmp_Buf[Read_Num]=0;
+		str_count++;
+		Read_Num++;
+		if(Read_Num>=STR_LIMIT){
+			Read_Num=0;
+		}
+		if(Str_Buf[str_count-1]=='\n'){
+			break;
+		}
+	}
+	Str_Buf[str_count]=0;
+	return str_count;
+}
+
+void SerialPort0_ISR(void) interrupt 4 
+{
+    if (RI==1) 
+    {                                       /* if reception occur */
+        clr_RI;                             /* clear reception flag for next reception */
+        Tmp_Buf[Write_Num] = SBUF;
+		Write_Num++;
+		if(Write_Num>=STR_LIMIT){
+			Write_Num=0;
+		}
+    }
+}
+#endif
+
+void StrTrim(char*pStr)  
+{  
+    char *pTmp = pStr;  
+      
+    while (*pStr != 0)   
+    {  
+        if (*pStr != ' ')  
+        {  
+            *pTmp++ = *pStr;  
+        }  
+        ++pStr;  
+    }  
+    *pTmp = 0;  
+} 
+
+
 
 void main (void) 
 {
 	//set_PD;
 	Set_All_GPIO_Quasi_Mode;					// Define in Function_define.h
 	//DEBUG_LED=0;
-	InitialUART0_Timer1(9600);
+	InitialUART0_Timer1(115200);
 	InitialUART1_Timer3(115200);
 	set_EA;                                     //enable interrupts
 	set_EPI;
+	set_ES;
 /*---------------------------------Main function-----------------------------------------------*/
 	Init_servo();
-	set_angle(90);
+	set_angle(0);
 	Init_motor();
 	while(1){
-#if 1
-		int i=0;
-		for(i=0;i<=2000;i=i+100){
-			Motor_forward(i);
-			Delay_1ms(100);
-			//Send_num(i);
+		int count = get_string();
+		//printf("get string\n");
+		if(count>0){
+			int speed=0, angle=0;
+			char speed_str[8],angle_str[8];
+			char * dot_pos;
+			//printf("get:%s",Str_Buf);
+			count = strlen(Str_Buf);
+			dot_pos=strchr(Str_Buf,',');
+			if(dot_pos!=NULL){
+				memset(speed_str,0,sizeof(speed_str));
+				memset(angle_str,0,sizeof(angle_str));
+				strncpy(speed_str,Str_Buf,dot_pos-Str_Buf);
+				strncpy(angle_str,dot_pos+1,count-(dot_pos-Str_Buf)-1);
+				StrTrim(speed_str);
+				StrTrim(angle_str);
+				speed=atoi(speed_str);
+				angle=atoi(angle_str);
+				if(speed>=-10 && speed<=10)
+					speed=Motor_move(speed);
+				else
+					speed=200;
+				if(angle>=-90 && angle<=90)
+					angle=set_angle(angle);
+				else
+					angle=400;
+				printf("set:%d,%d\n",speed,angle);
+			}
+			
 		}
-		for(i=180;i>=0;i--){
-			set_angle(i);
-			Delay_1ms(20);
-		}
-#endif
 	}
 }
