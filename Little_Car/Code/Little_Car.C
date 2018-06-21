@@ -47,6 +47,31 @@ here after stack initialization.
 #define testbit(x,y) x&(1<<y) //测试X的第Y位置
 #define clrbit(x,y) x&=!(1<<y) //将X的第Y位清0
 
+#if 1
+uchar button_trig_state=LOW;
+uchar Button_state=HIGH;
+void PinInterrupt_ISR (void) interrupt 7
+{
+	if (testbit(PIF,4))	//SWITCH PIN
+	{
+		clrbit(PIF,4);
+		//Delay_100us(1);
+		if(button_trig_state==LOW && P14==LOW){
+			Enable_BIT4_RasingEdge_Trig;
+			button_trig_state=HIGH;
+			Button_state=LOW;
+			Send_Data_To_UART0(Button_state);
+			Send_Data_To_UART0('\n');
+		}else if(button_trig_state==HIGH && P14==HIGH){
+			Enable_BIT4_FallEdge_Trig;
+			button_trig_state=LOW;
+			Button_state=HIGH;
+			Send_Data_To_UART0(Button_state);
+			Send_Data_To_UART0('\n');
+		}
+	}
+}
+#endif
 
 int Send_num(int num){
 	char CharToSend[10];
@@ -98,6 +123,8 @@ void Servo_Timer0_ISR (void) interrupt 1          //interrupt address is 0x000B
 	timer_count++;
 	if(timer_count>=200*RATE){
 		timer_count=0;
+		Send_Data_To_UART0(Button_state);
+		Send_Data_To_UART0('\n');
 	}
 }
 void Init_servo(){
@@ -261,6 +288,15 @@ void main (void)
 	//DEBUG_LED=0;
 	InitialUART0_Timer1(115200);
 	InitialUART1_Timer3(115200);
+/*---------------------------------------------------------------*/
+	P14_Input_Mode;
+#if 1
+	set_P0S_4;
+	Enable_BIT4_FallEdge_Trig;
+	button_trig_state=LOW;
+	Enable_INT_Port1; 
+#endif
+/*---------------------------------------------------------------*/
 	set_EA;                                     //enable interrupts
 	set_EPI;
 	set_ES;
@@ -295,7 +331,7 @@ void main (void)
 					angle=set_angle(angle);
 				else
 					angle=400;
-				printf("set:%d,%d\n",speed,angle);
+				//printf("set:%d,%d\n",speed,angle);
 			}
 			
 		}
