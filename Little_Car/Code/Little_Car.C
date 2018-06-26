@@ -62,14 +62,10 @@ void PinInterrupt_ISR (void) interrupt 7
 			Button_state=LOW;
 			Send_Data_To_UART0(Button_state);
 			Send_Data_To_UART0('\n');
-			Send_Data_To_UART0(Button_state);
-			Send_Data_To_UART0('\n');
 		}else if(button_trig_state==HIGH && P14==HIGH){
 			Enable_BIT4_FallEdge_Trig;
 			button_trig_state=LOW;
 			Button_state=HIGH;
-			Send_Data_To_UART0(Button_state);
-			Send_Data_To_UART0('\n');
 			Send_Data_To_UART0(Button_state);
 			Send_Data_To_UART0('\n');
 		}
@@ -102,20 +98,16 @@ int Send_num(int num){
 /************************************************************************************************************
 *   	Servo Control part
 ************************************************************************************************************/
-//9C3F=40000;
-//MIN=1000=0X03E8;
-//MIDDLE=3000=0X0BB8
-//MAX=5000=0X1388;
 #define RATE 2
-#define SERVO_LEFT		1000
-#define SERVO_RIGHT		5000
-#define SERVO_MIDDLE	3000
+#define SERVO_LEFT		(4*RATE)
+#define SERVO_RIGHT		(23*RATE)
+#define SERVO_MIDDLE	(15*RATE)
 #define SEVOR_PIN 		P10
 #define TIMER_DIV12_VALUE_50us			65536-65		//65*12/16000000 = 50 uS,  		// Timer divider = 12 
 
 int timer_count=0;
 int servo_angle=15*RATE;
-#if 0
+
 void Servo_Timer0_ISR (void) interrupt 1          //interrupt address is 0x000B
 {
 	clr_TF0;
@@ -135,10 +127,7 @@ void Servo_Timer0_ISR (void) interrupt 1          //interrupt address is 0x000B
 		Send_Data_To_UART0('\n');
 	}
 }
-#endif
 void Init_servo(){
-
-#if 0
 	P10_PushPull_Mode;							//Servo control pin
 	
 	TIMER0_MODE0_ENABLE;                        //Timer 0 and Timer 1 mode configuration
@@ -148,9 +137,7 @@ void Init_servo(){
     TH0 = HIBYTE(TIMER_DIV12_VALUE_10ms);
 	set_ET0;                                    //enable Timer0 interrupt
 	set_TR0;                                    //Timer0 run
-#endif
 }
-
 int set_angle(int angle){
 	angle+=90;	//angle range -90~90
 	if(angle<0){
@@ -160,16 +147,13 @@ int set_angle(int angle){
 		angle=180;
 	}
 	servo_angle=SERVO_LEFT+((float)(SERVO_RIGHT-SERVO_LEFT))/180*angle;
-	PWM2H = HIBYTE(servo_angle);			//L9110 PWM 0
-	PWM2L = LOBYTE(servo_angle);
-	set_LOAD;
 	return angle-90;
 }
 /************************************************************************************************************
 *   	Motor Control
 ************************************************************************************************************/
-#define SPEED_MIN		3999
-#define SPEED_MAX		39999
+#define SPEED_MIN		200
+#define SPEED_MAX		1998
 
 int Motor_move(int speed){			//speed range -10~10
 	int speed_load=0;
@@ -210,16 +194,10 @@ void Init_motor(){
 	PWM1_P11_OUTPUT_ENABLE;
 
 	PWM_IMDEPENDENT_MODE;
-	
-	PWM2_P10_OUTPUT_ENABLE;
 	PWM_CLOCK_DIV_8;
-	PWMPH = 0x9C;							//Setting PWM period
-	PWMPL = 0x3F;
+	PWMPH = 0x07;
+	PWMPL = 0xCF;
 	
-	PWM0H = 0x0B;							//PWM0 high duty = 1/2 PWM period
-	PWM0L = 0xB8;	
-
-	set_LOAD;
 	set_PWMRUN;
 }
 
@@ -323,10 +301,9 @@ void main (void)
 	set_EPI;
 	set_ES;
 /*---------------------------------Main function-----------------------------------------------*/
-	Init_motor();
 	Init_servo();
 	set_angle(0);
-	Motor_move(0);
+	Init_motor();
 	while(1){
 		int count = get_string();
 		//printf("get string\n");

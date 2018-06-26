@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 1   
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE LITTLE_CAR
@@ -62,7 +62,7 @@ line level    source
   43          here after stack initialization.
   44          ------------------------------------------------*/
   45          
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 2   
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 2   
 
   46          #define setbit(x,y) x|=(1<<y) //将X的第Y位置1
   47          #define testbit(x,y) x&(1<<y) //测试X的第Y位置
@@ -83,187 +83,163 @@ line level    source
   62   3            Button_state=LOW;
   63   3            Send_Data_To_UART0(Button_state);
   64   3            Send_Data_To_UART0('\n');
-  65   3            Send_Data_To_UART0(Button_state);
-  66   3            Send_Data_To_UART0('\n');
-  67   3          }else if(button_trig_state==HIGH && P14==HIGH){
-  68   3            Enable_BIT4_FallEdge_Trig;
-  69   3            button_trig_state=LOW;
-  70   3            Button_state=HIGH;
-  71   3            Send_Data_To_UART0(Button_state);
-  72   3            Send_Data_To_UART0('\n');
-  73   3            Send_Data_To_UART0(Button_state);
-  74   3            Send_Data_To_UART0('\n');
-  75   3          }
-  76   2        }
-  77   1      }
-  78          #endif
-  79          
-  80          int Send_num(int num){
-  81   1        char CharToSend[10];
-  82   1        uchar i=0,j=9;
-  83   1        uchar negative=0;
-  84   1        if(num<0){
-  85   2          negative=1;
-  86   2          num=-num;
-  87   2        }
-  88   1        if(num==0)
-  89   1          CharToSend[j--]='0';
-  90   1        while(num>0){
-  91   2          uchar aa=num%10;
-  92   2          CharToSend[j--]='0'+aa;
-  93   2          num=num/10;
-  94   2        }
-  95   1        if(negative==1){
-  96   2          CharToSend[j--]='-';
-  97   2        }
-  98   1        for(i=j+1; i<10; i++){
-  99   2          Send_Data_To_UART1(CharToSend[i]);
- 100   2        }
- 101   1      }
- 102          /*********************************************************************************************************
+  65   3          }else if(button_trig_state==HIGH && P14==HIGH){
+  66   3            Enable_BIT4_FallEdge_Trig;
+  67   3            button_trig_state=LOW;
+  68   3            Button_state=HIGH;
+  69   3            Send_Data_To_UART0(Button_state);
+  70   3            Send_Data_To_UART0('\n');
+  71   3          }
+  72   2        }
+  73   1      }
+  74          #endif
+  75          
+  76          int Send_num(int num){
+  77   1        char CharToSend[10];
+  78   1        uchar i=0,j=9;
+  79   1        uchar negative=0;
+  80   1        if(num<0){
+  81   2          negative=1;
+  82   2          num=-num;
+  83   2        }
+  84   1        if(num==0)
+  85   1          CharToSend[j--]='0';
+  86   1        while(num>0){
+  87   2          uchar aa=num%10;
+  88   2          CharToSend[j--]='0'+aa;
+  89   2          num=num/10;
+  90   2        }
+  91   1        if(negative==1){
+  92   2          CharToSend[j--]='-';
+  93   2        }
+  94   1        for(i=j+1; i<10; i++){
+  95   2          Send_Data_To_UART1(CharToSend[i]);
+  96   2        }
+  97   1      }
+  98          /*********************************************************************************************************
              -***
- 103          *     Servo Control part
- 104          **********************************************************************************************************
+  99          *     Servo Control part
+ 100          **********************************************************************************************************
              -**/
- 105          //9C3F=40000;
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 3   
+ 101          #define RATE 2
+ 102          #define SERVO_LEFT    (4*RATE)
+ 103          #define SERVO_RIGHT   (23*RATE)
+ 104          #define SERVO_MIDDLE  (15*RATE)
+ 105          #define SEVOR_PIN     P10
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 3   
 
- 106          //MIN=1000=0X03E8;
- 107          //MIDDLE=3000=0X0BB8
- 108          //MAX=5000=0X1388;
- 109          #define RATE 2
- 110          #define SERVO_LEFT    1000
- 111          #define SERVO_RIGHT   5000
- 112          #define SERVO_MIDDLE  3000
- 113          #define SEVOR_PIN     P10
- 114          #define TIMER_DIV12_VALUE_50us      65536-65    //65*12/16000000 = 50 uS,     // Timer divider = 12 
- 115          
- 116          int timer_count=0;
- 117          int servo_angle=15*RATE;
- 118          #if 0
-              void Servo_Timer0_ISR (void) interrupt 1          //interrupt address is 0x000B
-              {
-                clr_TF0;
-                clr_TR0;                                    //Stop Timer0
-                  TL0 = LOBYTE(TIMER_DIV12_VALUE_50us);     //Find  define in "Function_define.h" "TIMER VALUE"
-                  TH0 = HIBYTE(TIMER_DIV12_VALUE_50us);
-                set_TR0;                                    //Start Timer0
-                if(timer_count<=servo_angle){
-                  SEVOR_PIN=1;
-                }else{
-                  SEVOR_PIN=0;
-                }
-                timer_count++;
-                if(timer_count>=200*RATE){
-                  timer_count=0;
-                  Send_Data_To_UART0(Button_state);
-                  Send_Data_To_UART0('\n');
-                }
-              }
-              #endif
- 139          void Init_servo(){
- 140   1      
- 141   1      #if 0
-                P10_PushPull_Mode;              //Servo control pin
-                
-                TIMER0_MODE0_ENABLE;                        //Timer 0 and Timer 1 mode configuration
-                clr_T0M;
-                  TMOD |= 0x01;                               //Timer0 is 16-bit mode
-                  TL0 = LOBYTE(TIMER_DIV12_VALUE_10ms);     //Find  define in "Function_define.h" "TIMER VALUE"
-                  TH0 = HIBYTE(TIMER_DIV12_VALUE_10ms);
-                set_ET0;                                    //enable Timer0 interrupt
-                set_TR0;                                    //Timer0 run
-              #endif
- 152   1      }
- 153          
- 154          int set_angle(int angle){
- 155   1        angle+=90;  //angle range -90~90
- 156   1        if(angle<0){
- 157   2          angle=0;
- 158   2        }
- 159   1        if(angle>180){
- 160   2          angle=180;
- 161   2        }
- 162   1        servo_angle=SERVO_LEFT+((float)(SERVO_RIGHT-SERVO_LEFT))/180*angle;
- 163   1        PWM2H = HIBYTE(servo_angle);      //L9110 PWM 0
- 164   1        PWM2L = LOBYTE(servo_angle);
- 165   1        set_LOAD;
- 166   1        return angle-90;
- 167   1      }
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 4   
-
- 168          /*********************************************************************************************************
+ 106          #define TIMER_DIV12_VALUE_50us      65536-65    //65*12/16000000 = 50 uS,     // Timer divider = 12 
+ 107          
+ 108          int timer_count=0;
+ 109          int servo_angle=15*RATE;
+ 110          
+ 111          void Servo_Timer0_ISR (void) interrupt 1          //interrupt address is 0x000B
+ 112          {
+ 113   1        clr_TF0;
+ 114   1        clr_TR0;                                    //Stop Timer0
+ 115   1          TL0 = LOBYTE(TIMER_DIV12_VALUE_50us);     //Find  define in "Function_define.h" "TIMER VALUE"
+ 116   1          TH0 = HIBYTE(TIMER_DIV12_VALUE_50us);
+ 117   1        set_TR0;                                    //Start Timer0
+ 118   1        if(timer_count<=servo_angle){
+ 119   2          SEVOR_PIN=1;
+ 120   2        }else{
+ 121   2          SEVOR_PIN=0;
+ 122   2        }
+ 123   1        timer_count++;
+ 124   1        if(timer_count>=200*RATE){
+ 125   2          timer_count=0;
+ 126   2          Send_Data_To_UART0(Button_state);
+ 127   2          Send_Data_To_UART0('\n');
+ 128   2        }
+ 129   1      }
+ 130          void Init_servo(){
+ 131   1        P10_PushPull_Mode;              //Servo control pin
+ 132   1        
+ 133   1        TIMER0_MODE0_ENABLE;                        //Timer 0 and Timer 1 mode configuration
+ 134   1        clr_T0M;
+ 135   1          TMOD |= 0x01;                               //Timer0 is 16-bit mode
+ 136   1          TL0 = LOBYTE(TIMER_DIV12_VALUE_10ms);     //Find  define in "Function_define.h" "TIMER VALUE"
+ 137   1          TH0 = HIBYTE(TIMER_DIV12_VALUE_10ms);
+ 138   1        set_ET0;                                    //enable Timer0 interrupt
+ 139   1        set_TR0;                                    //Timer0 run
+ 140   1      }
+ 141          int set_angle(int angle){
+ 142   1        angle+=90;  //angle range -90~90
+ 143   1        if(angle<0){
+ 144   2          angle=0;
+ 145   2        }
+ 146   1        if(angle>180){
+ 147   2          angle=180;
+ 148   2        }
+ 149   1        servo_angle=SERVO_LEFT+((float)(SERVO_RIGHT-SERVO_LEFT))/180*angle;
+ 150   1        return angle-90;
+ 151   1      }
+ 152          /*********************************************************************************************************
              -***
- 169          *     Motor Control
- 170          **********************************************************************************************************
+ 153          *     Motor Control
+ 154          **********************************************************************************************************
              -**/
- 171          #define SPEED_MIN   3999
- 172          #define SPEED_MAX   39999
- 173          
- 174          int Motor_move(int speed){      //speed range -10~10
- 175   1        int speed_load=0;
- 176   1        if(speed>10){
- 177   2          speed=10;
- 178   2        }
- 179   1        if(speed<-10){
- 180   2          speed=-10;
- 181   2        }
- 182   1        //speed=speed*200;
- 183   1        if(speed==0){
- 184   2          PWM0H = HIBYTE(0);    //L9110 PWM HIGH
- 185   2          PWM0L = LOBYTE(0);
- 186   2          PWM1H = HIBYTE(0);      //L9110 PWM 0   
- 187   2          PWM1L = LOBYTE(0);
- 188   2        }
- 189   1        if(speed>0){
- 190   2          speed_load=(SPEED_MAX-SPEED_MIN)/10*speed+SPEED_MIN;
- 191   2          PWM0H = HIBYTE(speed_load);   //L9110 PWM HIGH
- 192   2          PWM0L = LOBYTE(speed_load);
- 193   2          PWM1H = HIBYTE(0);      //L9110 PWM 0   
- 194   2          PWM1L = LOBYTE(0);
- 195   2        }
- 196   1        if(speed<0){
- 197   2          speed=-speed;
- 198   2          speed_load=(SPEED_MAX-SPEED_MIN)/10*speed+SPEED_MIN;
- 199   2          PWM0H = HIBYTE(0);      //L9110 PWM 0
- 200   2          PWM0L = LOBYTE(0);
- 201   2          PWM1H = HIBYTE(speed_load);   //L9110 PWM HIGH    
- 202   2          PWM1L = LOBYTE(speed_load);
- 203   2        }
- 204   1        //PWM0_OUTPUT_INVERSE;
- 205   1        set_LOAD;
- 206   1        return speed;
- 207   1      }
- 208          void Init_motor(){
- 209   1        PWM0_P12_OUTPUT_ENABLE;
- 210   1        PWM1_P11_OUTPUT_ENABLE;
- 211   1      
- 212   1        PWM_IMDEPENDENT_MODE;
- 213   1        
- 214   1        PWM2_P10_OUTPUT_ENABLE;
- 215   1        PWM_CLOCK_DIV_8;
- 216   1        PWMPH = 0x9C;             //Setting PWM period
- 217   1        PWMPL = 0x3F;
- 218   1        
- 219   1        PWM0H = 0x0B;             //PWM0 high duty = 1/2 PWM period
- 220   1        PWM0L = 0xB8; 
- 221   1      
- 222   1        set_LOAD;
- 223   1        set_PWMRUN;
- 224   1      }
- 225          
- 226          //-----------------------------------------------------------------------------------
- 227          #define STR_LIMIT   50
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 5   
+ 155          #define SPEED_MIN   200
+ 156          #define SPEED_MAX   1998
+ 157          
+ 158          int Motor_move(int speed){      //speed range -10~10
+ 159   1        int speed_load=0;
+ 160   1        if(speed>10){
+ 161   2          speed=10;
+ 162   2        }
+ 163   1        if(speed<-10){
+ 164   2          speed=-10;
+ 165   2        }
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 4   
 
- 228          char Tmp_Buf[STR_LIMIT];
- 229          char Str_Buf[STR_LIMIT];
- 230          int Write_Num=0;
- 231          int Read_Num=0;
- 232          int Str_Ready=0;
- 233          int Data_Ready=0;
- 234          
- 235          #if 0
+ 166   1        //speed=speed*200;
+ 167   1        if(speed==0){
+ 168   2          PWM0H = HIBYTE(0);    //L9110 PWM HIGH
+ 169   2          PWM0L = LOBYTE(0);
+ 170   2          PWM1H = HIBYTE(0);      //L9110 PWM 0   
+ 171   2          PWM1L = LOBYTE(0);
+ 172   2        }
+ 173   1        if(speed>0){
+ 174   2          speed_load=(SPEED_MAX-SPEED_MIN)/10*speed+SPEED_MIN;
+ 175   2          PWM0H = HIBYTE(speed_load);   //L9110 PWM HIGH
+ 176   2          PWM0L = LOBYTE(speed_load);
+ 177   2          PWM1H = HIBYTE(0);      //L9110 PWM 0   
+ 178   2          PWM1L = LOBYTE(0);
+ 179   2        }
+ 180   1        if(speed<0){
+ 181   2          speed=-speed;
+ 182   2          speed_load=(SPEED_MAX-SPEED_MIN)/10*speed+SPEED_MIN;
+ 183   2          PWM0H = HIBYTE(0);      //L9110 PWM 0
+ 184   2          PWM0L = LOBYTE(0);
+ 185   2          PWM1H = HIBYTE(speed_load);   //L9110 PWM HIGH    
+ 186   2          PWM1L = LOBYTE(speed_load);
+ 187   2        }
+ 188   1        //PWM0_OUTPUT_INVERSE;
+ 189   1        set_LOAD;
+ 190   1        return speed;
+ 191   1      }
+ 192          void Init_motor(){
+ 193   1        PWM0_P12_OUTPUT_ENABLE;
+ 194   1        PWM1_P11_OUTPUT_ENABLE;
+ 195   1      
+ 196   1        PWM_IMDEPENDENT_MODE;
+ 197   1        PWM_CLOCK_DIV_8;
+ 198   1        PWMPH = 0x07;
+ 199   1        PWMPL = 0xCF;
+ 200   1        
+ 201   1        set_PWMRUN;
+ 202   1      }
+ 203          
+ 204          //-----------------------------------------------------------------------------------
+ 205          #define STR_LIMIT   50
+ 206          char Tmp_Buf[STR_LIMIT];
+ 207          char Str_Buf[STR_LIMIT];
+ 208          int Write_Num=0;
+ 209          int Read_Num=0;
+ 210          int Str_Ready=0;
+ 211          int Data_Ready=0;
+ 212          
+ 213          #if 0
               uchar get_string()
               {
                   int result_num=0;
@@ -278,6 +254,8 @@ line level    source
                   if(result_num>=STR_LIMIT){
                     break;
                   }
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 5   
+
                   timeout=5000;
                   while(!RI && timeout--);
                   }
@@ -285,128 +263,127 @@ line level    source
                   return result_num;
               }
               #else
- 257          int get_string(){
- 258   1        int str_count=0;
- 259   1        while(Tmp_Buf[Read_Num]){
- 260   2          Str_Buf[str_count]=Tmp_Buf[Read_Num];
- 261   2          Tmp_Buf[Read_Num]=0;
- 262   2          str_count++;
- 263   2          Read_Num++;
- 264   2          if(Read_Num>=STR_LIMIT){
- 265   3            Read_Num=0;
- 266   3          }
- 267   2          if(Str_Buf[str_count-1]=='\n'){
- 268   3            break;
- 269   3          }
- 270   2        }
- 271   1        Str_Buf[str_count]=0;
- 272   1        return str_count;
- 273   1      }
- 274          
- 275          void SerialPort0_ISR(void) interrupt 4 
- 276          {
- 277   1          if (RI==1) 
- 278   1          {                                       /* if reception occur */
- 279   2              clr_RI;                             /* clear reception flag for next reception */
- 280   2              Tmp_Buf[Write_Num] = SBUF;
- 281   2          Write_Num++;
- 282   2          if(Write_Num>=STR_LIMIT){
- 283   3            Write_Num=0;
- 284   3          }
- 285   2          }
- 286   1      }
- 287          #endif
- 288          
- 289          void StrTrim(char*pStr)  
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 6   
+ 235          int get_string(){
+ 236   1        int str_count=0;
+ 237   1        while(Tmp_Buf[Read_Num]){
+ 238   2          Str_Buf[str_count]=Tmp_Buf[Read_Num];
+ 239   2          Tmp_Buf[Read_Num]=0;
+ 240   2          str_count++;
+ 241   2          Read_Num++;
+ 242   2          if(Read_Num>=STR_LIMIT){
+ 243   3            Read_Num=0;
+ 244   3          }
+ 245   2          if(Str_Buf[str_count-1]=='\n'){
+ 246   3            break;
+ 247   3          }
+ 248   2        }
+ 249   1        Str_Buf[str_count]=0;
+ 250   1        return str_count;
+ 251   1      }
+ 252          
+ 253          void SerialPort0_ISR(void) interrupt 4 
+ 254          {
+ 255   1          if (RI==1) 
+ 256   1          {                                       /* if reception occur */
+ 257   2              clr_RI;                             /* clear reception flag for next reception */
+ 258   2              Tmp_Buf[Write_Num] = SBUF;
+ 259   2          Write_Num++;
+ 260   2          if(Write_Num>=STR_LIMIT){
+ 261   3            Write_Num=0;
+ 262   3          }
+ 263   2          }
+ 264   1      }
+ 265          #endif
+ 266          
+ 267          void StrTrim(char*pStr)  
+ 268          {  
+ 269   1          char *pTmp = pStr;  
+ 270   1            
+ 271   1          while (*pStr != 0)   
+ 272   1          {  
+ 273   2              if (*pStr != ' ')  
+ 274   2              {  
+ 275   3                  *pTmp++ = *pStr;  
+ 276   3              }  
+ 277   2              ++pStr;  
+ 278   2          }  
+ 279   1          *pTmp = 0;  
+ 280   1      } 
+ 281          
+ 282          
+ 283          
+ 284          void main (void) 
+ 285          {
+ 286   1        //set_PD;
+ 287   1        Set_All_GPIO_Quasi_Mode;          // Define in Function_define.h
+ 288   1        //DEBUG_LED=0;
+ 289   1        InitialUART0_Timer1(115200);
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 6   
 
- 290          {  
- 291   1          char *pTmp = pStr;  
- 292   1            
- 293   1          while (*pStr != 0)   
- 294   1          {  
- 295   2              if (*pStr != ' ')  
- 296   2              {  
- 297   3                  *pTmp++ = *pStr;  
- 298   3              }  
- 299   2              ++pStr;  
- 300   2          }  
- 301   1          *pTmp = 0;  
- 302   1      } 
- 303          
- 304          
- 305          
- 306          void main (void) 
- 307          {
- 308   1        //set_PD;
- 309   1        Set_All_GPIO_Quasi_Mode;          // Define in Function_define.h
- 310   1        //DEBUG_LED=0;
- 311   1        InitialUART0_Timer1(115200);
- 312   1        InitialUART1_Timer3(115200);
- 313   1      /*---------------------------------------------------------------*/
- 314   1        P14_Input_Mode;
- 315   1      #if 1
- 316   1        set_P0S_4;
- 317   1        Enable_BIT4_FallEdge_Trig;
- 318   1        button_trig_state=LOW;
- 319   1        Enable_INT_Port1; 
- 320   1      #endif
- 321   1      /*---------------------------------------------------------------*/
- 322   1        set_EA;                                     //enable interrupts
- 323   1        set_EPI;
- 324   1        set_ES;
- 325   1      /*---------------------------------Main function-----------------------------------------------*/
- 326   1        Init_motor();
- 327   1        Init_servo();
- 328   1        set_angle(0);
- 329   1        Motor_move(0);
- 330   1        while(1){
- 331   2          int count = get_string();
- 332   2          //printf("get string\n");
- 333   2          if(count>0){
- 334   3            int speed=0, angle=0;
- 335   3            char speed_str[8],angle_str[8];
- 336   3            char * dot_pos;
- 337   3            //printf("get:%s",Str_Buf);
- 338   3            count = strlen(Str_Buf);
- 339   3            dot_pos=strchr(Str_Buf,',');
- 340   3            if(dot_pos!=NULL){
- 341   4              memset(speed_str,0,sizeof(speed_str));
- 342   4              memset(angle_str,0,sizeof(angle_str));
- 343   4              strncpy(speed_str,Str_Buf,dot_pos-Str_Buf);
- 344   4              strncpy(angle_str,dot_pos+1,count-(dot_pos-Str_Buf)-1);
- 345   4              StrTrim(speed_str);
- 346   4              StrTrim(angle_str);
- 347   4              speed=atoi(speed_str);
- 348   4              angle=atoi(angle_str);
- 349   4              if(speed>=-10 && speed<=10)
- 350   4                speed=Motor_move(speed);
- 351   4              else
-C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/21/2018 21:33:24 PAGE 7   
-
- 352   4                speed=200;
- 353   4              if(angle>=-90 && angle<=90)
- 354   4                angle=set_angle(angle);
- 355   4              else
- 356   4                angle=400;
- 357   4              //printf("set:%d,%d\n",speed,angle);
- 358   4            }
- 359   3            
- 360   3          }
- 361   2        }
- 362   1      }
-*** WARNING C290 IN LINE 101 OF Code\Little_Car.C: missing return value
+ 290   1        InitialUART1_Timer3(115200);
+ 291   1      /*---------------------------------------------------------------*/
+ 292   1        P14_Input_Mode;
+ 293   1      #if 1
+ 294   1        set_P0S_4;
+ 295   1        Enable_BIT4_FallEdge_Trig;
+ 296   1        button_trig_state=LOW;
+ 297   1        Enable_INT_Port1; 
+ 298   1      #endif
+ 299   1      /*---------------------------------------------------------------*/
+ 300   1        set_EA;                                     //enable interrupts
+ 301   1        set_EPI;
+ 302   1        set_ES;
+ 303   1      /*---------------------------------Main function-----------------------------------------------*/
+ 304   1        Init_servo();
+ 305   1        set_angle(0);
+ 306   1        Init_motor();
+ 307   1        while(1){
+ 308   2          int count = get_string();
+ 309   2          //printf("get string\n");
+ 310   2          if(count>0){
+ 311   3            int speed=0, angle=0;
+ 312   3            char speed_str[8],angle_str[8];
+ 313   3            char * dot_pos;
+ 314   3            //printf("get:%s",Str_Buf);
+ 315   3            count = strlen(Str_Buf);
+ 316   3            dot_pos=strchr(Str_Buf,',');
+ 317   3            if(dot_pos!=NULL){
+ 318   4              memset(speed_str,0,sizeof(speed_str));
+ 319   4              memset(angle_str,0,sizeof(angle_str));
+ 320   4              strncpy(speed_str,Str_Buf,dot_pos-Str_Buf);
+ 321   4              strncpy(angle_str,dot_pos+1,count-(dot_pos-Str_Buf)-1);
+ 322   4              StrTrim(speed_str);
+ 323   4              StrTrim(angle_str);
+ 324   4              speed=atoi(speed_str);
+ 325   4              angle=atoi(angle_str);
+ 326   4              if(speed>=-10 && speed<=10)
+ 327   4                speed=Motor_move(speed);
+ 328   4              else
+ 329   4                speed=200;
+ 330   4              if(angle>=-90 && angle<=90)
+ 331   4                angle=set_angle(angle);
+ 332   4              else
+ 333   4                angle=400;
+ 334   4              //printf("set:%d,%d\n",speed,angle);
+ 335   4            }
+ 336   3            
+ 337   3          }
+ 338   2        }
+ 339   1      }
+*** WARNING C290 IN LINE 97 OF Code\Little_Car.C: missing return value
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   1690    ----
+   CODE SIZE        =   1728    ----
    CONSTANT SIZE    =   ----    ----
-   XDATA SIZE       =    114      51
+   XDATA SIZE       =    114      49
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.
+
+C51 COMPILER V9.53.0.0   LITTLE_CAR                                                        06/03/2018 13:59:52 PAGE 7   
 
 
 C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
