@@ -152,8 +152,8 @@ int set_angle(int angle){
 /************************************************************************************************************
 *   	Motor Control
 ************************************************************************************************************/
-#define SPEED_MIN		200
-#define SPEED_MAX		1998
+#define SPEED_MIN		800
+#define SPEED_MAX		1999
 
 int Motor_move(int speed){			//speed range -10~10
 	int speed_load=0;
